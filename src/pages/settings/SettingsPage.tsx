@@ -98,6 +98,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5 pb-28">
+      {/* ── Branches ────────────────────────────────────────────────────── */}
+      <BranchesSection />
+
       {/* ── Sync ─────────────────────────────────────────────────────────── */}
       <CollapsibleSection
         icon={RefreshCw}
@@ -163,9 +166,6 @@ export default function SettingsPage() {
             </AnimatePresence>
           </div>
         </CollapsibleSection>
-
-      {/* ── Branches ────────────────────────────────────────────────────── */}
-      <BranchesSection />
 
       {/* ── Branch Settings + Notifications ──────────────────────────────── */}
       <CollapsibleSection
