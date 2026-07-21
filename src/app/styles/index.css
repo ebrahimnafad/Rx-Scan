@@ -1,0 +1,63 @@
+﻿@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-surface: #E8EDF2;
+  --color-primary: #1862F5;
+  --color-primary-light: #4A85F6;
+  --color-secondary: #FF3366;
+  --color-accent: #9FB4CC;
+  --color-success: #0ACF83;
+  --color-warning: #E8C98F;
+  --color-danger: #FF3366;
+  --color-text-primary: #3D4A5C;
+  --color-text-secondary: #5A6577;
+  --color-text-muted: #6B7B8F;
+  --color-text-light: #E2E8F0;
+
+  /* Neumorphic Shadows */
+  --shadow-neu: 8px 8px 16px #c4c9ce, -8px -8px 16px #ffffff;
+  --shadow-neu-inset: inset 4px 4px 8px #c4c9ce, inset -4px -4px 8px #ffffff;
+  --shadow-neu-btn: 6px 6px 12px #c4c9ce, -6px -6px 12px #ffffff;
+  --shadow-neu-btn-pressed: inset 3px 3px 6px #c4c9ce, inset -3px -3px 6px #ffffff;
+  --shadow-neu-card: 10px 10px 20px #c4c9ce, -10px -10px 20px #ffffff;
+  --shadow-neu-sm: 4px 4px 8px #c4c9ce, -4px -4px 8px #ffffff;
+  --shadow-neu-floating: 12px 12px 24px #b8bdc2, -12px -12px 24px #ffffff;
+
+  /* Border Radii */
+  --radius-neu-sm: 12px;
+  --radius-neu-md: 20px;
+  --radius-neu-lg: 28px;
+  --radius-neu-xl: 36px;
+
+  /* Font */
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* RxScan — VIP */
+  --color-vip: #F6AD55;
+  --color-vip-bg: rgba(246,173,85,0.12);
+
+  /* RxScan — Prescription status */
+  --color-status-dispensed: #0ACF83;
+  --color-status-scheduled: #1862F5;
+  --color-status-due-today:  #E8C98F;
+  --color-status-overdue:    #FF3366;
+  --color-status-pending:    #6B7B8F;}
+
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Utility for spin animation (sync spinner) */
+.animate-spin-smooth {
+  animation: spin 1s linear infinite;
+}
+
+
+

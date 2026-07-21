@@ -1,0 +1,1 @@
+export { Card, type CardVariant, type CardProps } from './Card';
