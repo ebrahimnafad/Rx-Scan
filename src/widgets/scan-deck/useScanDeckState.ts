@@ -75,8 +75,8 @@ async function nextN(filter: QueueFilter, count: number): Promise<Prescription[]
   }
   if (filter.type === 'urgent') {
     rows.sort((a: Prescription, b: Prescription) => {
-      const aKey = a.trx_date ?? a.created_at ?? '';
-      const bKey = b.trx_date ?? b.created_at ?? '';
+      const aKey = a.scheduled_date ?? a.created_at ?? '';
+      const bKey = b.scheduled_date ?? b.created_at ?? '';
       return aKey.localeCompare(bKey);
     });
   }

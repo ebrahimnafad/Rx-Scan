@@ -250,16 +250,16 @@ describe('dedup.ts - patientEnrichment', () => {
 });
 
 describe('queue.ts - assign', () => {
-  it('assigns positions: VIP first, then trx_date desc', async () => {
-    seedRx(makeRx({ id: 1, reference_number: 'R1', trx_date: '2024-01-10', is_vip: false, status: 'pending' }));
-    seedRx(makeRx({ id: 2, reference_number: 'R2', trx_date: '2024-01-20', is_vip: true, status: 'pending' }));
-    seedRx(makeRx({ id: 3, reference_number: 'R3', trx_date: '2024-01-15', is_vip: false, status: 'pending' }));
+  it('assigns positions: VIP first, then scheduled_date desc', async () => {
+    seedRx(makeRx({ id: 1, reference_number: 'R1', scheduled_date: '2024-01-10', is_vip: false, status: 'pending' }));
+    seedRx(makeRx({ id: 2, reference_number: 'R2', scheduled_date: '2024-01-20', is_vip: true, status: 'pending' }));
+    seedRx(makeRx({ id: 3, reference_number: 'R3', scheduled_date: '2024-01-15', is_vip: false, status: 'pending' }));
 
     await assign();
 
     expect(getRx(2)!.queue_position).toBe(0);  // VIP first
-    expect(getRx(3)!.queue_position).toBe(1);  // then trx_date desc (Jan 15)
-    expect(getRx(1)!.queue_position).toBe(2);  // then trx_date desc (Jan 10)
+    expect(getRx(3)!.queue_position).toBe(1);  // then scheduled_date desc (Jan 15)
+    expect(getRx(1)!.queue_position).toBe(2);  // then scheduled_date desc (Jan 10)
   });
 });
 
@@ -289,18 +289,18 @@ describe('queue.ts - next', () => {
     expect(result?.id).toBe(2); // VIP with lowest queue_position
   });
 
-  it('urgent filter: returns first due_today/overdue by trx_date asc', async () => {
-    seedRx(makeRx({ id: 1, status: 'overdue', trx_date: '2024-01-20' }));
-    seedRx(makeRx({ id: 2, status: 'due_today', trx_date: '2024-01-10' }));
+  it('urgent filter: returns first due_today/overdue by scheduled_date asc', async () => {
+    seedRx(makeRx({ id: 1, status: 'overdue', scheduled_date: '2024-01-20' }));
+    seedRx(makeRx({ id: 2, status: 'due_today', scheduled_date: '2024-01-10' }));
 
     const result = await next({ type: 'urgent' });
-    expect(result?.id).toBe(2); // earliest trx_date
+    expect(result?.id).toBe(2); // earliest scheduled_date
   });
 
   it('urgent filter: advances to next item if first item is marked due_today (actioned)', async () => {
     // 1. Setup urgent queue with 2 items
-    seedRx(makeRx({ id: 1, status: 'overdue', trx_date: '2024-01-10' }));
-    seedRx(makeRx({ id: 2, status: 'overdue', trx_date: '2024-01-15' }));
+    seedRx(makeRx({ id: 1, status: 'overdue', scheduled_date: '2024-01-10' }));
+    seedRx(makeRx({ id: 2, status: 'overdue', scheduled_date: '2024-01-15' }));
 
     // 2. Fetch first item
     let top = await next({ type: 'urgent' });

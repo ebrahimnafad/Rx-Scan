@@ -22,7 +22,7 @@ export type QueueFilter =
   | { type: 'byId'; id: number };
 
 function urgentSortKey(rx: Prescription): string {
-  return rx.trx_date ?? rx.created_at ?? '';
+  return rx.scheduled_date ?? rx.created_at ?? '';
 }
 
 export async function next(filter: QueueFilter): Promise<Prescription | undefined> {
@@ -151,11 +151,11 @@ export async function assign(): Promise<void> {
   const db = await getDb();
   const pending = await getPrescriptionsByStatus('pending');
 
-  // Sort pending: VIP first (desc), then trx_date desc
+  // Sort pending: VIP first (desc), then scheduled_date desc
   pending.sort((a: Prescription, b: Prescription) => {
     if (a.is_vip !== b.is_vip) return a.is_vip ? -1 : 1;
-    const da = a.trx_date ?? '0000-00-00';
-    const db2 = b.trx_date ?? '0000-00-00';
+    const da = a.scheduled_date ?? '0000-00-00';
+    const db2 = b.scheduled_date ?? '0000-00-00';
     return da < db2 ? 1 : da > db2 ? -1 : 0;
   });
 

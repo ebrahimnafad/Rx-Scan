@@ -552,7 +552,7 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
         {filter !== 'all' && filter !== 'dispensed' && visible.length > 0 && (
           <button
             onClick={() => navigate(`/scan?filter=${filter}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-white text-[11px] font-bold border-2 border-primary shadow-neu-btn cursor-pointer transition-all duration-150"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-white text-[11px] font-bold border-2 border-primary shadow-neu-sm cursor-pointer transition-all duration-150"
           >
             <ScanLine size={13} />
             Scan
