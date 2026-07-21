@@ -64,8 +64,8 @@ function applySort(rxs: Prescription[], sort: SortKey, sortDir: 'asc' | 'desc'):
   const m = sortDir === 'asc' ? 1 : -1;
   return [...rxs].sort((a, b) => {
     switch (sort) {
-      case 'trx_date':
-        return m * (a.trx_date ?? '').localeCompare(b.trx_date ?? '');
+      case 'scheduled_date':
+        return m * (a.scheduled_date ?? '').localeCompare(b.scheduled_date ?? '');
       case 'loyalty_name':
         return m * (a.loyalty_name ?? '').localeCompare(b.loyalty_name ?? '');
       case 'gross_value':
@@ -483,7 +483,7 @@ interface PrescriptionListProps {
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'status_urgency', label: 'Urgency'   },
-  { key: 'trx_date',       label: 'Trx Date'  },
+  { key: 'scheduled_date', label: 'Due Date'  },
   { key: 'loyalty_name',   label: 'Name'      },
   { key: 'gross_value',    label: 'Value'     },
   { key: 'notified',       label: 'Notified'  },
@@ -552,7 +552,7 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
         {filter !== 'all' && filter !== 'dispensed' && visible.length > 0 && (
           <button
             onClick={() => navigate(`/scan?filter=${filter}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-white text-[11px] font-bold border-2 border-primary shadow-neu-sm cursor-pointer transition-all duration-150"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-[11px] font-bold border-[3px] border-primary shadow-neu-sm cursor-pointer transition-all duration-150"
           >
             <ScanLine size={13} />
             Scan

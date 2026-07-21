@@ -57,7 +57,7 @@ export interface Settings {
 }
 
 export type SortKey =
-  | 'trx_date'
+  | 'scheduled_date'
   | 'loyalty_name'
   | 'status_urgency'
   | 'gross_value'
