@@ -35,12 +35,14 @@ export function ScanDeck({ settings }: ScanDeckProps) {
   const [cardFace, setCardFace]         = useState<CardFace>('front');
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(tomorrowISO());
-  const [exitDir, setExitDir]           = useState<SwipeDirection | null>(null);
-  const [swipingKey, setSwipingKey]     = useState<string | null>(null);
+  const [, setExitDir]                  = useState<SwipeDirection | null>(null);
+  const [, setSwipingKey]              = useState<string | null>(null);
   const [dragDelta, setDragDelta]       = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [refuseDir, setRefuseDir]       = useState<SwipeDirection | null>(null);
   const lastTap                         = useRef(0);
   const tapTimeout                      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exitDirRef                      = useRef<SwipeDirection | null>(null);
+  const swipingKeyRef                   = useRef<string | null>(null);
 
   const navigate = useNavigate();
   const { rx, nextRx, nextNextRx, pendingCount, skippedCount, filter, isPending, isSingleCard, dispense, skip, markDueToday, schedule, revealAllSkipped, updateInfo, notify, undoEntry, dismissUndo } =
@@ -57,6 +59,8 @@ export function ScanDeck({ settings }: ScanDeckProps) {
       setShowSchedule(false);
       setExitDir(null);
       setSwipingKey(null);
+      exitDirRef.current = null;
+      swipingKeyRef.current = null;
     }
   }, [currentKey]);
 
@@ -78,12 +82,17 @@ export function ScanDeck({ settings }: ScanDeckProps) {
     }
 
     setCardFace('front');
+    exitDirRef.current = dir;
+    swipingKeyRef.current = currentKey;
     setExitDir(dir);
     setSwipingKey(currentKey);
     setDragDelta({ x: 0, y: 0 });
     if (dir === 'up')   await dispense(rx.id);
     if (dir === 'left') await skip(rx.id);
     if (dir === 'down') await markDueToday(rx.id);
+
+    exitDirRef.current = null;
+    swipingKeyRef.current = null;
 
     if (isSingleCard) {
       navigate(filter ? `/?filter=${filter}` : '/');
@@ -93,10 +102,15 @@ export function ScanDeck({ settings }: ScanDeckProps) {
   async function handleSchedule() {
     if (!rx?.id) return;
     setCardFace('front');
+    exitDirRef.current = 'right';
+    swipingKeyRef.current = currentKey;
     setExitDir('right');
     setSwipingKey(currentKey);
     setDragDelta({ x: 0, y: 0 });
     await schedule(rx.id, scheduleDate);
+
+    exitDirRef.current = null;
+    swipingKeyRef.current = null;
 
     if (isSingleCard) {
       navigate(filter ? `/?filter=${filter}` : '/');
@@ -133,10 +147,10 @@ export function ScanDeck({ settings }: ScanDeckProps) {
   });
 
   const exitVariant: AnimationDefinition | undefined =
-    exitDir === 'up'    ? { y: -window.innerHeight, opacity: 0 } :
-    exitDir === 'down'  ? { y: window.innerHeight, opacity: 0 } :
-    exitDir === 'left'  ? { x: -window.innerWidth, opacity: 0 } :
-    exitDir === 'right' ? { x: window.innerWidth, opacity: 0 } :
+    exitDirRef.current === 'up'    ? { y: -window.innerHeight, opacity: 0 } :
+    exitDirRef.current === 'down'  ? { y: window.innerHeight, opacity: 0 } :
+    exitDirRef.current === 'left'  ? { x: -window.innerWidth, opacity: 0 } :
+    exitDirRef.current === 'right' ? { x: window.innerWidth, opacity: 0 } :
     undefined;
 
   // ── Loading state ──────────────────────────────────────────────────────
@@ -237,7 +251,7 @@ export function ScanDeck({ settings }: ScanDeckProps) {
               key={currentKey}
               initial={false}
               animate={
-                exitDir && swipingKey === currentKey
+                exitDirRef.current && swipingKeyRef.current === currentKey
                   ? (exitVariant as any)
                   : refuseDir
                     ? {
@@ -249,7 +263,7 @@ export function ScanDeck({ settings }: ScanDeckProps) {
               }
               exit={exitVariant as any}
               transition={
-                exitDir && swipingKey === currentKey
+                exitDirRef.current && swipingKeyRef.current === currentKey
                   ? { duration: 0.2 }
                   : refuseDir
                     ? { type: 'spring', stiffness: 600, damping: 20, mass: 0.6 }
@@ -263,7 +277,7 @@ export function ScanDeck({ settings }: ScanDeckProps) {
               <motion.div
                 initial={false}
                 animate={{ rotateY: cardFace === 'front' ? 0 : 180 }}
-                transition={exitDir ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 25, mass: 1.2 }}
+                transition={exitDirRef.current ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 25, mass: 1.2 }}
                 style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}
               >
                 {/* Front Face */}
