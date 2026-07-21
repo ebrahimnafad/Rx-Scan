@@ -91,9 +91,6 @@ export function ScanDeck({ settings }: ScanDeckProps) {
     if (dir === 'left') await skip(rx.id);
     if (dir === 'down') await markDueToday(rx.id);
 
-    exitDirRef.current = null;
-    swipingKeyRef.current = null;
-
     if (isSingleCard) {
       navigate(filter ? `/?filter=${filter}` : '/');
     }
@@ -108,9 +105,6 @@ export function ScanDeck({ settings }: ScanDeckProps) {
     setSwipingKey(currentKey);
     setDragDelta({ x: 0, y: 0 });
     await schedule(rx.id, scheduleDate);
-
-    exitDirRef.current = null;
-    swipingKeyRef.current = null;
 
     if (isSingleCard) {
       navigate(filter ? `/?filter=${filter}` : '/');
