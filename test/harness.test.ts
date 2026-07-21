@@ -297,6 +297,30 @@ describe('queue.ts - next', () => {
     expect(result?.id).toBe(2); // earliest trx_date
   });
 
+  it('urgent filter: advances to next item if first item is marked due_today (actioned)', async () => {
+    // 1. Setup urgent queue with 2 items
+    seedRx(makeRx({ id: 1, status: 'overdue', trx_date: '2024-01-10' }));
+    seedRx(makeRx({ id: 2, status: 'overdue', trx_date: '2024-01-15' }));
+
+    // 2. Fetch first item
+    let top = await next({ type: 'urgent' });
+    expect(top?.id).toBe(1);
+
+    // 3. User swipes down -> markDueToday
+    // markDueToday sets status to 'due_today' and updates updated_at and actioned_at
+    const existing = getRx(1)!;
+    mockDB.set(`prescriptions:1`, {
+      store: 'prescriptions',
+      value: { ...existing, status: 'due_today', updated_at: `${todayISO()}T12:00:00Z`, actioned_at: `${todayISO()}T12:00:00Z` }
+    });
+
+    // 4. Fetch again (simulating query invalidation)
+    top = await next({ type: 'urgent' });
+    
+    // 5. It should advance to item 2, because item 1 is now actioned
+    expect(top?.id).toBe(2);
+  });
+
   it('scheduled filter: returns first by scheduled_date asc', async () => {
     seedRx(makeRx({ id: 1, status: 'scheduled', scheduled_date: '2024-01-20' }));
     seedRx(makeRx({ id: 2, status: 'scheduled', scheduled_date: '2024-01-10' }));

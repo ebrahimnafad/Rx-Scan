@@ -52,9 +52,10 @@ async function nextN(filter: QueueFilter, count: number): Promise<Prescription[]
     }
     rows = statuses;
   } else if (filter.type === 'urgent') {
+    const today = new Date().toISOString().split('T')[0];
     for (const s of ['due_today', 'overdue'] as const) {
       const batch = await db.getAllFromIndex('prescriptions', 'by_status', s);
-      rows.push(...batch);
+      rows.push(...batch.filter((r: Prescription) => !r.actioned_at || !r.actioned_at.startsWith(today)));
     }
   } else if (filter.type === 'scheduled') {
     rows = await db.getAllFromIndex('prescriptions', 'by_status', 'scheduled');
@@ -70,6 +71,13 @@ async function nextN(filter: QueueFilter, count: number): Promise<Prescription[]
       if (aUrgent && !bUrgent) return -1;
       if (!aUrgent && bUrgent) return 1;
       return (a.queue_position ?? Infinity) - (b.queue_position ?? Infinity);
+    });
+  }
+  if (filter.type === 'urgent') {
+    rows.sort((a: Prescription, b: Prescription) => {
+      const aKey = a.trx_date ?? a.created_at ?? '';
+      const bKey = b.trx_date ?? b.created_at ?? '';
+      return aKey.localeCompare(bKey);
     });
   }
   if (filter.type === 'scheduled') {

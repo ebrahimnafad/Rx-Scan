@@ -82,9 +82,10 @@ export async function next(filter: QueueFilter): Promise<Prescription | undefine
   if (filter.type === 'urgent') {
     const statuses: PrescriptionStatus[] = ['due_today', 'overdue'];
     const all: Prescription[] = [];
+    const today = todayISO();
     for (const s of statuses) {
       const rows = await db.getAllFromIndex('prescriptions', 'by_status', s);
-      all.push(...rows);
+      all.push(...rows.filter((r: Prescription) => !r.actioned_at || !r.actioned_at.startsWith(today)));
     }
     all.sort((a, b) => urgentSortKey(a).localeCompare(urgentSortKey(b)));
     return all[0];
@@ -119,9 +120,10 @@ export async function countForFilter(filter: QueueFilter): Promise<number> {
       return pending + skipped;
     }
     case 'urgent': {
-      const dueToday = await dbCountByStatus('due_today');
-      const overdue = await dbCountByStatus('overdue');
-      return dueToday + overdue;
+      const today = todayISO();
+      const rows1 = await db.getAllFromIndex('prescriptions', 'by_status', 'due_today');
+      const rows2 = await db.getAllFromIndex('prescriptions', 'by_status', 'overdue');
+      return [...rows1, ...rows2].filter((r: Prescription) => !r.actioned_at || !r.actioned_at.startsWith(today)).length;
     }
     case 'pending':
       return dbCountByStatus('pending');
