@@ -22,7 +22,7 @@ interface ExportImageDialogProps {
 }
 
 const CARD_WIDTH = 280;
-const WHITE_BORDER = '6px solid rgba(255,255,255,0.5)';
+const WHITE_BORDER = '6px solid #9FB4CC';
 
 export function ExportImageDialog({
   isOpen,
@@ -70,13 +70,12 @@ export function ExportImageDialog({
               />
             </div>
 
-            {/* Dashed Divider */}
-            <div
-              style={{
-                borderTop: '2px dashed #A0AEC0',
-                margin: '0 20px',
-              }}
-            />
+            {/* Dashed Divider — ticket tear-off style with semicircular notches */}
+            <div style={{ position: 'relative', height: 24, margin: '-12px 0' }}>
+              <div style={{ position: 'absolute', top: '50%', left: 14, right: 14, borderTop: '1.5px dashed #A0AEC0', transform: 'translateY(-50%)' }} />
+              <div style={{ position: 'absolute', left: -10, top: '50%', width: 20, height: 20, borderRadius: '50%', background: '#E8EDF2', transform: 'translateY(-50%)' }} />
+              <div style={{ position: 'absolute', right: -10, top: '50%', width: 20, height: 20, borderRadius: '50%', background: '#E8EDF2', transform: 'translateY(-50%)' }} />
+            </div>
 
             {/* Back Face — hideHeader skips duplicate name/drug */}
             <div style={{ padding: '16px' }}>
