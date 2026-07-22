@@ -13,13 +13,15 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence, type AnimationDefinition } from 'motion/react';
 import {
-  ArrowUp, ArrowLeft, ArrowDown, ArrowRight, Calendar, SkipForward,
+  ArrowUp, ArrowLeft, ArrowDown, ArrowRight, Calendar, SkipForward, ImageUp,
 } from 'lucide-react';
 import { NeumorphicCard } from '@/shared/ui/NeumorphicCard';
 import { NeumorphicButton } from '@/shared/ui/NeumorphicButton';
 import { Card } from '@/widgets/prescription-card';
 import { UndoToastManager } from '@/shared/ui/UndoToast';
 import { useSwipeGesture, type SwipeDirection } from '@/features/scan-gestures/lib/useSwipeGesture';
+import { useExportImage } from '@/features/export-image/lib/useExportImage';
+import { ExportImageDialog } from '@/features/export-image/ui/ExportImageDialog';
 import { useScanDeckState } from './useScanDeckState';
 import { tomorrowISO } from '@/shared/lib/excel-date';
 import { ease } from '@/shared/config/motion-tokens';
@@ -49,6 +51,8 @@ export function ScanDeck({ settings }: ScanDeckProps) {
     useScanDeckState();
 
   const currentKey = rx ? `${rx.id}-${rx.actioned_at || rx.updated_at || ''}` : 'empty';
+
+  const exportImage = useExportImage(rx, settings);
 
   // Reset to front face whenever a new card arrives
   const prevKey = useRef(currentKey);
@@ -171,15 +175,26 @@ export function ScanDeck({ settings }: ScanDeckProps) {
           <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           {pendingCount} in queue
         </span>
-        {skippedCount > 0 && (
-          <button
-            onClick={revealAllSkipped}
-            className="flex items-center gap-1 text-xs text-primary underline bg-transparent border-none cursor-pointer p-0"
-          >
-            <SkipForward size={12} />
-            Reveal {skippedCount} skipped
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {rx && (
+            <button
+              onClick={exportImage.openDialog}
+              className="flex items-center gap-1 text-xs text-text-secondary bg-transparent border-none cursor-pointer p-1 rounded-lg hover:text-primary transition-colors"
+              title="Export Card as Image"
+            >
+              <ImageUp size={14} />
+            </button>
+          )}
+          {skippedCount > 0 && (
+            <button
+              onClick={revealAllSkipped}
+              className="flex items-center gap-1 text-xs text-primary underline bg-transparent border-none cursor-pointer p-0"
+            >
+              <SkipForward size={12} />
+              Reveal {skippedCount} skipped
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Depth stack: 2 ghost cards behind */}
@@ -380,6 +395,21 @@ export function ScanDeck({ settings }: ScanDeckProps) {
 
       {/* Undo toast */}
       <UndoToastManager action={undoEntry} onDismiss={dismissUndo} />
+
+      {/* Export image dialog */}
+      <ExportImageDialog
+        isOpen={exportImage.isOpen}
+        isCapturing={exportImage.isCapturing}
+        imageUrl={exportImage.imageUrl}
+        error={exportImage.error}
+        captureRef={exportImage.captureRef}
+        rx={exportImage.rx}
+        settings={exportImage.settings}
+        onClose={exportImage.closeDialog}
+        onDownload={exportImage.download}
+        onShare={exportImage.share}
+        onRecapture={exportImage.recapture}
+      />
     </div>
   );
 }

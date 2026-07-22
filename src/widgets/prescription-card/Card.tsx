@@ -34,6 +34,7 @@ export interface CardProps {
   showSchedule?: boolean;
   scheduleDate?: string;
   onScheduleDateChange?: (date: string) => void;
+  hideHeader?: boolean;
   style?: React.CSSProperties;
 }
 
@@ -52,6 +53,7 @@ export function Card({
   showSchedule = false,
   scheduleDate,
   onScheduleDateChange,
+  hideHeader = false,
   style,
 }: CardProps) {
   const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -217,18 +219,22 @@ export function Card({
             </div>
           )}
 
-        <div className="relative flex items-center justify-between mb-2 z-10">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {rx.is_vip && <VipBadge size="sm" />}
-            <p className="m-0 text-base font-semibold text-text-primary leading-tight truncate">
-              {rx.loyalty_name ?? 'Unknown Patient'}
+        {!hideHeader && (
+          <>
+            <div className="relative flex items-center justify-between mb-2 z-10">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {rx.is_vip && <VipBadge size="sm" />}
+                <p className="m-0 text-base font-semibold text-text-primary leading-tight truncate">
+                  {rx.loyalty_name ?? 'Unknown Patient'}
+                </p>
+              </div>
+              <StatusBadge status={rx.status} size="sm" />
+            </div>
+            <p className="relative z-10 m-0 mb-3 text-sm text-text-secondary truncate" title={drugName}>
+              {drugName.length > 50 ? drugName.slice(0, 50) + '…' : drugName}
             </p>
-          </div>
-          <StatusBadge status={rx.status} size="sm" />
-        </div>
-        <p className="relative z-10 m-0 mb-3 text-sm text-text-secondary truncate" title={drugName}>
-          {drugName.length > 50 ? drugName.slice(0, 50) + '…' : drugName}
-        </p>
+          </>
+        )}
 
         {localShowSchedule && (
           <div className="relative z-20 w-full px-3 py-3 mb-3 rounded-xl bg-surface shadow-neu-inset">
