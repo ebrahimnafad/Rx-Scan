@@ -482,11 +482,11 @@ interface PrescriptionListProps {
 }
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'status_urgency', label: 'Urgency'   },
   { key: 'scheduled_date', label: 'Due Date'  },
-  { key: 'loyalty_name',   label: 'Name'      },
   { key: 'gross_value',    label: 'Value'     },
   { key: 'notified',       label: 'Notified'  },
+  { key: 'status_urgency', label: 'Urgency'   },
+  { key: 'loyalty_name',   label: 'Name'      },
 ];
 
 const PAGE_SIZE = 25;
@@ -497,8 +497,8 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
   useEffect(() => {
     if (initialFilter) setFilter(initialFilter);
   }, [initialFilter]);
-  const [sort,      setSort]      = useState<SortKey>('status_urgency');
-  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
+  const [sort,      setSort]      = useState<SortKey>('scheduled_date');
+  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('asc');
   const [page,      setPage]      = useState(1);
   const navigate = useNavigate();
 
