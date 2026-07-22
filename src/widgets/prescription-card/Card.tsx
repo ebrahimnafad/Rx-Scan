@@ -13,9 +13,10 @@ import { VipBadge } from '@/shared/ui/VipBadge';
 import { BarcodeVisual } from '@/shared/lib/barcode/BarcodeVisual';
 import { whatsappLink, callLink, localFormat, buildWhatsAppMessage } from '@/shared/lib/phone';
 import { todayISO, tomorrowISO, nowISO } from '@/shared/lib/excel-date';
-import { updatePrescription } from '@/app/db';
+import { updatePrescription } from '@/entities/prescription/model/store';
 import type { Prescription, Settings } from '@/entities/prescription/model/types';
 import { BEAM } from '@/shared/config/beam';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 export type CardVariant = 'front' | 'back' | 'row';
 
@@ -80,11 +81,11 @@ export function Card({
       if (remaining <= 0) {
         // Already expired — reset immediately
         updatePrescription(rxId, { notified_via: null, notified_at: null, updated_at: nowISO() })
-          .then(() => qc.invalidateQueries({ queryKey: ['prescriptions'] }));
+          .then(() => qc.invalidateQueries({ queryKey: queryKeys.prescriptions.lists() }));
       } else {
         timerRef.current = setTimeout(async () => {
           await updatePrescription(rxId, { notified_via: null, notified_at: null, updated_at: nowISO() });
-          qc.invalidateQueries({ queryKey: ['prescriptions'] });
+          qc.invalidateQueries({ queryKey: queryKeys.prescriptions.lists() });
         }, remaining);
       }
     }

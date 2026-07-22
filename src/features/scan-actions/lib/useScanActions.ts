@@ -4,9 +4,8 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { updatePrescription, getPrescriptionById, getAllPrescriptions, getDb } from '@/app/db';
+import { updatePrescription, getPrescriptionById, revealAllSkippedPrescriptions } from '@/entities/prescription/model/store';
 import { nowISO } from '@/shared/lib/excel-date';
-import { assign } from '@/features/queue/lib/queue';
 import { invalidateAfterMutation } from '@/shared/api/mutations';
 import type { Prescription } from '@/entities/prescription/model/types';
 
@@ -28,8 +27,7 @@ export function useScanActions() {
   async function withUndo(
     rxId: number,
     message: string,
-    apply: (existing: Prescription) => Partial<Prescription>,
-    sideEffect?: () => Promise<void>
+    apply: (existing: Prescription) => Partial<Prescription>
   ) {
     const existing = await getPrescriptionById(rxId);
     if (!existing) return;
@@ -37,7 +35,6 @@ export function useScanActions() {
     const snapshot = { ...existing };
     const patch    = apply(existing);
     await updatePrescription(rxId, patch);
-    if (sideEffect) await sideEffect();
     await invalidate();
 
     setUndoEntry({
@@ -45,7 +42,6 @@ export function useScanActions() {
       message,
       onUndo: async () => {
         await updatePrescription(rxId, snapshot);
-        await assign(); // Always enforce queue correctness on undo
         await invalidate();
       },
     });
@@ -61,15 +57,14 @@ export function useScanActions() {
       dispensed_at:   nowISO(),
       actioned_at:    existing.actioned_at ?? nowISO(),
       updated_at:     nowISO(),
-    }), assign);
+    }));
   }
 
   async function skip(rxId: number) {
-    // Move to back of queue — full re-sort via assign() for correctness + undo symmetry (C1)
     await withUndo(rxId, 'Prescription skipped', _ => ({
       status:     'skipped',
       updated_at: nowISO(),
-    }), assign);
+    }));
   }
 
   async function markDueToday(rxId: number) {
@@ -79,7 +74,7 @@ export function useScanActions() {
       scheduled_date: null,
       actioned_at:    existing.actioned_at ?? nowISO(),
       updated_at:     nowISO(),
-    }), assign);
+    }));
   }
 
   async function schedule(rxId: number, date: string) {
@@ -89,22 +84,11 @@ export function useScanActions() {
       queue_position: null,
       actioned_at:    existing.actioned_at ?? nowISO(),
       updated_at:     nowISO(),
-    }), assign);
+    }));
   }
 
   async function revealAllSkipped() {
-    // Promote all skipped → pending so they re-enter the queue front
-    const db = await getDb();
-    const allRx = await getAllPrescriptions();
-    const skipped = allRx.filter(rx => rx.status === 'skipped');
-    const tx = db.transaction('prescriptions', 'readwrite');
-    for (const rx of skipped) {
-      if (!rx.id) continue;
-      await tx.store.put({ ...rx, status: 'pending', updated_at: nowISO() });
-    }
-    await tx.done;
-    // Reassign queue positions so revealed items get proper positions
-    await assign();
+    await revealAllSkippedPrescriptions();
     await invalidate();
   }
 

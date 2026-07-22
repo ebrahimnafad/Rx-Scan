@@ -1,6 +1,6 @@
 // app/hooks/useBadgeCounts.ts
 import { useQuery } from '@tanstack/react-query';
-import { countAllStatuses } from '@/app/db';
+import { countAllStatuses } from '@/entities/prescription/model/store';
 
 export function useBadgeCounts() {
   const { data } = useQuery({

@@ -1,7 +1,8 @@
 // app/hooks/useOverdueScheduler.ts
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { promoteScheduled } from '@/features/queue/lib/queue';
+import { promoteScheduledPrescriptions } from '@/entities/prescription/model/store';
+import { invalidateAfterMutation } from '@/shared/api/mutations';
 
 /**
  * Runs on mount and every 60 seconds.
@@ -15,14 +16,10 @@ export function useOverdueScheduler() {
 
   useEffect(() => {
     async function check() {
-      const changed = await promoteScheduled();
+      const changed = await promoteScheduledPrescriptions();
       if (!changed) return;
 
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] }),
-        qc.invalidateQueries({ queryKey: ['count'] }),
-        qc.invalidateQueries({ queryKey: ['scan'] }),
-      ]);
+      await invalidateAfterMutation(qc, 'scheduleUpdate');
     }
 
     check();

@@ -2,7 +2,8 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
-import { getAllPrescriptions, getSettings, updatePrescription } from '@/app/db';
+import { getAllPrescriptions, updatePrescription } from '@/entities/prescription/model/store';
+import { getSettings } from '@/entities/settings/model/store';
 import { PrescriptionList } from '@/widgets/prescription-list/PrescriptionList';
 import { NeumorphicCard } from '@/shared/ui/NeumorphicCard';
 import { UndoToastManager } from '@/shared/ui/UndoToast';
@@ -10,6 +11,7 @@ import { useScanActions } from '@/features/scan-actions/lib/useScanActions';
 import { invalidateAfterMutation } from '@/shared/api/mutations';
 import { nowISO } from '@/shared/lib/excel-date';
 import type { FilterKey } from '@/entities/prescription/model/types';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 export default function PrescriptionsPage() {
   const qc = useQueryClient();
@@ -20,13 +22,13 @@ export default function PrescriptionsPage() {
     ? (rawFilter as FilterKey) : undefined;
 
   const { data: prescriptions = [], isLoading } = useQuery({
-    queryKey: ['prescriptions', 'all'],
+    queryKey: queryKeys.prescriptions.all(),
     queryFn: getAllPrescriptions,
     staleTime: 30_000,
   });
 
   const { data: settings } = useQuery({
-    queryKey: ['settings'],
+    queryKey: queryKeys.settings.all(),
     queryFn: getSettings,
     staleTime: 30_000,
   });

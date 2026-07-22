@@ -6,6 +6,7 @@ import { RefreshCw, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Clipboard
 import { NeumorphicCard } from '@/shared/ui/NeumorphicCard';
 import { NeumorphicButton } from '@/shared/ui/NeumorphicButton';
 import { useSync, validateSheetUrl } from '../lib/useSync';
+import { GoogleSheetsUrlAdapter, GoogleSheetsPasteAdapter } from '../lib/adapters/google-sheets/GoogleSheetsAdapter';
 
 
 interface SyncFormProps {
@@ -44,7 +45,7 @@ export function SyncForm({
   onUrlChange,
   onNameChange,
 }: SyncFormProps) {
-  const { loading, error, result, syncFromUrls, syncFromPaste } = useSync();
+  const { loading, error, result, runSync } = useSync();
   const [showPaste, setShowPaste] = useState(false);
   const [paste1, setPaste1] = useState('');
   const [paste2, setPaste2] = useState('');
@@ -73,12 +74,12 @@ export function SyncForm({
       setUrlError1('At least one sheet URL is required');
       return;
     }
-    syncFromUrls(localUrl1 || undefined, localUrl2 || undefined);
+    runSync(new GoogleSheetsUrlAdapter(localUrl1 || undefined, localUrl2 || undefined));
   }
 
   function handlePasteSync() {
     if (!paste1 && !paste2) return;
-    syncFromPaste(paste1 || undefined, paste2 || undefined);
+    runSync(new GoogleSheetsPasteAdapter(paste1 || undefined, paste2 || undefined));
   }
 
   const lastSyncDisplay = lastSyncAt
@@ -239,7 +240,7 @@ export function SyncForm({
             <p className="text-sm font-semibold text-success m-0">Sync complete</p>
           </div>
           <p className="text-xs text-text-muted m-0">
-            {result.sheet1_count} invoices · {result.sheet2_count} VIP · {result.merged_count} merged
+            {result.merged_count} prescriptions synced
           </p>
         </NeumorphicCard>
       )}

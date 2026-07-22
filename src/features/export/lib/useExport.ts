@@ -5,11 +5,12 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getAllPrescriptions, getSettings, upsertPrescription, saveSettings, clearAllPrescriptions } from '@/app/db';
+import { getAllPrescriptions } from '@/entities/prescription/model/store';
+import { getSettings } from '@/entities/settings/model/store';
+import { restoreBackup } from '@/app/systemStore';
 import { localFormat } from '@/shared/lib/phone';
 import { nowISO } from '@/shared/lib/excel-date';
 import { invalidateAfterMutation } from '@/shared/api/mutations';
-import { assign } from '@/features/queue/lib/queue';
 import type { Prescription, PrescriptionStatus, Settings } from '@/entities/prescription/model/types';
 
 /* ── Old rx-tracker backup migration ────────────────────────────────── */
@@ -199,20 +200,7 @@ export function useExport() {
         settingsPatch = data.settings ?? {};
       }
 
-      if (prescriptions.length) {
-        await clearAllPrescriptions();
-        for (const rx of prescriptions) {
-          await upsertPrescription({ ...rx, updated_at: nowISO() });
-        }
-        await assign();
-      }
-      if (Object.keys(settingsPatch).length) {
-        const patch: Record<string, string> = {};
-        for (const [k, v] of Object.entries(settingsPatch)) {
-          if (v != null) patch[k] = String(v);
-        }
-        await saveSettings(patch);
-      }
+      await restoreBackup(prescriptions, settingsPatch);
       await invalidateAfterMutation(qc, 'importJson');
     } finally {
       setImporting(false);

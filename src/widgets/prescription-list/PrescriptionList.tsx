@@ -20,7 +20,7 @@ import { BarcodeVisual } from '@/shared/lib/barcode/BarcodeVisual';
 import { STATUS_URGENCY } from '@/entities/prescription/lib/status';
 import type { PrescriptionStatus } from '@/entities/prescription/model/types';
 import { todayISO, tomorrowISO } from '@/shared/lib/excel-date';
-import { updatePrescription } from '@/app/db';
+import { updatePrescription } from '@/entities/prescription/model/store';
 import { useQueryClient } from '@tanstack/react-query';
 import { nowISO } from '@/shared/lib/excel-date';
 import { BEAM } from '@/shared/config/beam';

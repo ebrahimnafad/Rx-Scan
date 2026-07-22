@@ -5,10 +5,10 @@
 
 import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { countForFilter, countByStatus, next, type QueueFilter } from '@/features/queue/lib/queue';
+import { countForFilter, countByStatus, getTopInQueue, type QueueFilter } from '@/features/queue/lib/queue';
 import { useScanActions } from '@/features/scan-actions/lib/useScanActions';
 import type { Prescription } from '@/entities/prescription/model/types';
-import { getDb } from '@/app/db';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 function parseQueueFilter(raw: string | null, rxId: string | null): QueueFilter {
   if (rxId) {
@@ -24,72 +24,6 @@ function parseQueueFilter(raw: string | null, rxId: string | null): QueueFilter 
   return { type: 'default' };
 }
 
-async function nextN(filter: QueueFilter, count: number): Promise<Prescription[]> {
-  if (filter.type === 'byId') {
-    const rx = await next(filter);
-    return rx ? [rx] : [];
-  }
-  const db = await getDb();
-  let rows: Prescription[] = [];
-
-  if (filter.type === 'default') {
-    const pending = (await db.getAllFromIndex('prescriptions', 'by_status', 'pending'))
-      .filter((r: Prescription) => r.queue_position !== null);
-    const skipped = (await db.getAllFromIndex('prescriptions', 'by_status', 'skipped'))
-      .filter((r: Prescription) => r.queue_position !== null);
-    rows = [...pending, ...skipped];
-  } else if (filter.type === 'pending') {
-    rows = (await db.getAllFromIndex('prescriptions', 'by_status', 'pending'))
-      .filter((r: Prescription) => r.queue_position !== null);
-  } else if (filter.type === 'skipped') {
-    rows = (await db.getAllFromIndex('prescriptions', 'by_status', 'skipped'))
-      .filter((r: Prescription) => r.queue_position !== null);
-  } else if (filter.type === 'vip') {
-    const statuses: Prescription[] = [];
-    for (const s of ['pending', 'skipped', 'due_today', 'overdue'] as const) {
-      const batch = await db.getAllFromIndex('prescriptions', 'by_status', s);
-      statuses.push(...batch.filter((r: Prescription) => r.is_vip));
-    }
-    rows = statuses;
-  } else if (filter.type === 'urgent') {
-    const today = new Date().toISOString().split('T')[0];
-    for (const s of ['due_today', 'overdue'] as const) {
-      const batch = await db.getAllFromIndex('prescriptions', 'by_status', s);
-      rows.push(...batch.filter((r: Prescription) => !r.actioned_at || !r.actioned_at.startsWith(today)));
-    }
-  } else if (filter.type === 'scheduled') {
-    rows = await db.getAllFromIndex('prescriptions', 'by_status', 'scheduled');
-  } else if (filter.type === 'dispensed') {
-    rows = await db.getAllFromIndex('prescriptions', 'by_status', 'dispensed');
-  }
-
-  rows.sort((a: Prescription, b: Prescription) => (a.queue_position ?? 0) - (b.queue_position ?? 0));
-  if (filter.type === 'vip') {
-    rows.sort((a: Prescription, b: Prescription) => {
-      const aUrgent = a.status === 'due_today' || a.status === 'overdue';
-      const bUrgent = b.status === 'due_today' || b.status === 'overdue';
-      if (aUrgent && !bUrgent) return -1;
-      if (!aUrgent && bUrgent) return 1;
-      return (a.queue_position ?? Infinity) - (b.queue_position ?? Infinity);
-    });
-  }
-  if (filter.type === 'urgent') {
-    rows.sort((a: Prescription, b: Prescription) => {
-      const aKey = a.scheduled_date ?? a.created_at ?? '';
-      const bKey = b.scheduled_date ?? b.created_at ?? '';
-      return aKey.localeCompare(bKey);
-    });
-  }
-  if (filter.type === 'scheduled') {
-    rows.sort((a: Prescription, b: Prescription) => (a.scheduled_date ?? '').localeCompare(b.scheduled_date ?? ''));
-  }
-  if (filter.type === 'dispensed') {
-    rows.sort((a: Prescription, b: Prescription) => (b.dispensed_at ?? '').localeCompare(a.dispensed_at ?? ''));
-  }
-
-  return rows.slice(0, count);
-}
-
 export function useScanDeckState() {
   const [searchParams] = useSearchParams();
   const filter = searchParams.get('filter');
@@ -99,19 +33,19 @@ export function useScanDeckState() {
 
   // Single query for top card + 2 ghost cards — atomically consistent on invalidation (B2)
   const { data: topCards = [], isPending } = useQuery({
-    queryKey: ['scan', filter, rxParam],
-    queryFn:  () => nextN(queueFilter, 3),
+    queryKey: queryKeys.queue.scan(filter, rxParam),
+    queryFn:  () => getTopInQueue(queueFilter, 3),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
   });
 
   const { data: pendingCount = 0 } = useQuery({
-    queryKey: ['count', 'filter', filter, rxParam],
+    queryKey: queryKeys.queue.countFilter(filter, rxParam),
     queryFn:  () => countForFilter(queueFilter),
     staleTime: 30_000,
   });
   const { data: skippedCount = 0 } = useQuery({
-    queryKey: ['count', 'skipped'],
+    queryKey: queryKeys.queue.countSkipped(),
     queryFn:  () => countByStatus('skipped'),
     staleTime: 30_000,
   });

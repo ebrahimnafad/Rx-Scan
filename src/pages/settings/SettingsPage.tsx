@@ -7,18 +7,20 @@ import { NeumorphicButton } from '@/shared/ui/NeumorphicButton';
 import { CollapsibleSection } from '@/shared/ui/CollapsibleSection';
 import { SyncForm } from '@/features/sync/ui/SyncForm';
 import { ImportConfirmDialog } from '@/features/export/ui/ImportConfirmDialog';
-import { getSettings, saveSettings, eraseAllData } from '@/app/db';
+import { getSettings, saveSettings } from '@/entities/settings/model/store';
+import { eraseAllData } from '@/app/systemStore';
 import { useExport } from '@/features/export/lib/useExport';
 import { useBranch } from '@/app/providers/BranchProvider';
 import { duration, ease } from '@/shared/config/motion-tokens';
 import { NeumorphicInput } from '@/shared/ui/NeumorphicInput';
 import { DEFAULT_WA_TEMPLATE } from '@/shared/lib/phone';
+import { queryKeys } from '@/shared/api/queryKeys';
 import type { Settings } from '@/entities/prescription/model/types';
 
 
 function useSettings() {
   return useQuery({
-    queryKey: ['settings'],
+    queryKey: queryKeys.settings.all(),
     queryFn: getSettings,
     staleTime: 30_000,
   });
@@ -28,7 +30,7 @@ function useSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: Partial<Record<string, string>>) => saveSettings(patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.settings.all() }),
   });
 }
 

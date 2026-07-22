@@ -1,11 +1,12 @@
 // pages/scan/ScanPage.tsx
 import { useQuery } from '@tanstack/react-query';
 import { ScanDeck } from '@/widgets/scan-deck/ScanDeck';
-import { getSettings } from '@/app/db';
+import { getSettings } from '@/entities/settings/model/store';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 export default function ScanPage() {
   const { data: settings } = useQuery({
-    queryKey: ['settings'],
+    queryKey: queryKeys.settings.all(),
     queryFn: getSettings,
     staleTime: 30_000,
   });

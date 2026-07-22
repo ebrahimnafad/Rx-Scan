@@ -3,13 +3,15 @@
 // Replaces sweep invalidation with targeted key-based invalidation.
 
 import type { QueryClient } from '@tanstack/react-query';
+import { queryKeys } from './queryKeys';
 
 export type MutationType =
   | 'scanAction'
   | 'noteChange'
   | 'notificationReset'
   | 'sync'
-  | 'importJson';
+  | 'importJson'
+  | 'scheduleUpdate';
 
 /**
  * After a mutation, invalidate only the query keys that are actually affected.
@@ -22,38 +24,46 @@ export async function invalidateAfterMutation(
   switch (type) {
     case 'scanAction':
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] }),
-        qc.invalidateQueries({ queryKey: ['scan'] }),
-        qc.invalidateQueries({ queryKey: ['count'] }),
+        qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
       ]);
       break;
 
     case 'noteChange':
-      await qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] });
+      await qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() });
       break;
 
     case 'notificationReset':
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] }),
-        qc.invalidateQueries({ queryKey: ['count'] }),
+        qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
       ]);
       break;
 
     case 'sync':
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] }),
-        qc.invalidateQueries({ queryKey: ['scan'] }),
-        qc.invalidateQueries({ queryKey: ['count'] }),
-        qc.invalidateQueries({ queryKey: ['settings'] }),
+        qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
+        qc.invalidateQueries({ queryKey: queryKeys.settings.all() }),
       ]);
       break;
 
     case 'importJson':
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['prescriptions', 'all'] }),
-        qc.invalidateQueries({ queryKey: ['settings'] }),
-        qc.invalidateQueries({ queryKey: ['count'] }),
-        qc.invalidateQueries({ queryKey: ['scan'] }),
+        qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.settings.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+      ]);
+      break;
+
+    case 'scheduleUpdate':
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
       ]);
       break;
   }
