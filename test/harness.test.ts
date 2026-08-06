@@ -1,11 +1,11 @@
 // test/harness.ts - Minimal test harness for pure logic functions
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fullOuterMerge, patientEnrichment } from '@/entities/prescription/lib/dedup';
-import { surgicalUpsert } from '@/features/sync/lib/upsert';
-import { assign, next, countByStatus, promoteScheduled } from '@/features/queue/lib/queue';
-import { getDb, clearAllPrescriptions } from '@/app/db';
+import { upsertPrescriptionsBatch, rebalanceQueueTx, promoteScheduledPrescriptions } from '@/entities/prescription/model/store';
+import { getTopInQueue, countByStatus, countForFilter, type QueueFilter } from '@/features/queue/lib/queue';
+import { getDb } from '@/adapters/idb/base';
 import { todayISO } from '@/shared/lib/excel-date';
-import type { Sheet1Row, Sheet2Row, MergedPrescription, Prescription, PrescriptionStatus, QueueFilter } from '@/entities/prescription/model/types';
+import type { Sheet1Row, Sheet2Row, MergedPrescription, Prescription, PrescriptionStatus } from '@/entities/prescription/model/types';
 
 // ── Mock IndexedDB ──────────────────────────────────────────────
 const mockDB = new Map<string, any>();
@@ -95,10 +95,14 @@ function makeDB() {
   return {
     createObjectStore: vi.fn().mockReturnThis(),
     createIndex: vi.fn().mockReturnThis(),
-    transaction: vi.fn((store: any, _mode: any) => ({
-      store: makeStore(store),
-      done: Promise.resolve(),
-    })),
+    transaction: vi.fn((storeNames: any, _mode: any) => {
+      const first = Array.isArray(storeNames) ? storeNames[0] : storeNames;
+      return {
+        store: makeStore(first),
+        objectStore: (name: string) => makeStore(name),
+        done: Promise.resolve(),
+      };
+    }),
     get: vi.fn((store: any, key: any) => {
       const record = recordsForStore(store).find(v => v.value.id === key);
       return Promise.resolve(record?.value);
@@ -175,6 +179,17 @@ function makeRx(overrides: Partial<Prescription> & { id: number }): Prescription
     notified_via: null, notified_at: null, created_at: now, updated_at: now,
     ...overrides,
   };
+}
+
+async function assign(): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction('prescriptions', 'readwrite');
+  await rebalanceQueueTx(tx, new Date().toISOString());
+  await tx.done;
+}
+
+async function next(filter: QueueFilter): Promise<Prescription | undefined> {
+  return (await getTopInQueue(filter, 1))[0];
 }
 
 // ── Tests ────────────────────────────────────────────────────────
@@ -338,6 +353,40 @@ describe('queue.ts - next', () => {
   });
 });
 
+describe('queue.ts - sort and search', () => {
+  it('explicit sort overrides queue_position order', async () => {
+    seedRx(makeRx({ id: 1, status: 'pending', queue_position: 0, gross_value: 50 }));
+    seedRx(makeRx({ id: 2, status: 'pending', queue_position: 1, gross_value: 200 }));
+    seedRx(makeRx({ id: 3, status: 'pending', queue_position: 2, gross_value: 120 }));
+
+    const result = await next({ type: 'pending', sort: 'gross_value', sortDir: 'desc' });
+    expect(result?.id).toBe(2); // highest value first
+  });
+
+  it('search filters by name/reference', async () => {
+    seedRx(makeRx({ id: 1, status: 'pending', queue_position: 0, loyalty_name: 'Ali Mohammed', reference_number: 'REF1' }));
+    seedRx(makeRx({ id: 2, status: 'pending', queue_position: 1, loyalty_name: 'Sara', reference_number: 'REF2' }));
+
+    const result = await next({ type: 'pending', search: 'ali' });
+    expect(result?.id).toBe(1);
+  });
+
+  it('search with no match returns nothing', async () => {
+    seedRx(makeRx({ id: 1, status: 'pending', queue_position: 0, loyalty_name: 'Ali' }));
+
+    const result = await next({ type: 'pending', search: 'zzz' });
+    expect(result).toBeUndefined();
+  });
+
+  it('countForFilter respects search', async () => {
+    seedRx(makeRx({ id: 1, status: 'pending', queue_position: 0, loyalty_name: 'Ali' }));
+    seedRx(makeRx({ id: 2, status: 'pending', queue_position: 1, loyalty_name: 'Sara' }));
+
+    expect(await countForFilter({ type: 'pending', search: 'ali' })).toBe(1);
+    expect(await countForFilter({ type: 'pending' })).toBe(2);
+  });
+});
+
 describe('queue.ts - countByStatus', () => {
   it('counts prescriptions by status', async () => {
     seedRx(makeRx({ id: 1, status: 'pending' }));
@@ -364,7 +413,7 @@ describe('queue.ts - promoteScheduled', () => {
     seedRx(makeRx({ id: 2, status: 'scheduled', scheduled_date: today }));
     seedRx(makeRx({ id: 3, status: 'scheduled', scheduled_date: tomorrow }));
 
-    await promoteScheduled();
+    await promoteScheduledPrescriptions();
 
     expect(getRx(1)!.status).toBe('overdue');
     expect(getRx(1)!.queue_position).toBeNull();
@@ -374,7 +423,7 @@ describe('queue.ts - promoteScheduled', () => {
   });
 });
 
-describe('upsert.ts - surgicalUpsert', () => {
+describe('store.ts - upsertPrescriptionsBatch', () => {
   it('inserts new as pending', async () => {
     const merged: MergedPrescription[] = [{
       reference_number: 'NEW1', patient_national_id: 'NAT1',
@@ -382,12 +431,12 @@ describe('upsert.ts - surgicalUpsert', () => {
       drug_name_sheet1: 'Drug', drug_name_sheet2: null,
       gross_value: 100, trx_date: '2024-01-01', is_vip: false,
     }];
-    await surgicalUpsert(merged);
+    await upsertPrescriptionsBatch(merged);
     const all = recordsForStore('prescriptions');
     const inserted = all.find(v => v.value.reference_number === 'NEW1');
     expect(inserted).toBeDefined();
     expect(inserted!.value.status).toBe('pending');
-    expect(inserted!.value.queue_position).toBeNull();
+    expect(inserted!.value.queue_position).toBe(0);
   });
 
   it('full-replaces pending but preserves action fields', async () => {
@@ -402,7 +451,7 @@ describe('upsert.ts - surgicalUpsert', () => {
       drug_name_sheet1: 'NewDrug', drug_name_sheet2: 'Sheet2Drug',
       gross_value: 200, trx_date: '2024-01-02', is_vip: true,
     }];
-    await surgicalUpsert(merged);
+    await upsertPrescriptionsBatch(merged);
 
     const updated = getRx(1)!;
     expect(updated.loyalty_name).toBe('New');
@@ -411,7 +460,7 @@ describe('upsert.ts - surgicalUpsert', () => {
     expect(updated.is_vip).toBe(true);
     // Preserved
     expect(updated.status).toBe('pending');
-    expect(updated.queue_position).toBe(5);
+    expect(updated.queue_position).toBe(0);
     expect(updated.notes).toBe('my note');
   });
 
@@ -429,7 +478,7 @@ describe('upsert.ts - surgicalUpsert', () => {
       drug_name_sheet1: 'NewDrug', drug_name_sheet2: 'Sheet2Drug',
       gross_value: 200, trx_date: '2024-01-02', is_vip: true,
     }];
-    await surgicalUpsert(merged);
+    await upsertPrescriptionsBatch(merged);
 
     const updated = getRx(2)!;
     // Should update

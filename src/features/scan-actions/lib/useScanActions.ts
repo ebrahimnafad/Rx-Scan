@@ -68,11 +68,11 @@ export function useScanActions() {
   }
 
   async function markDueToday(rxId: number) {
-    await withUndo(rxId, 'Marked due today', existing => ({
+    await withUndo(rxId, 'Marked due today', _ => ({
       status:         'due_today',
       queue_position: null,
       scheduled_date: null,
-      actioned_at:    existing.actioned_at ?? nowISO(),
+      actioned_at:    nowISO(),
       updated_at:     nowISO(),
     }));
   }

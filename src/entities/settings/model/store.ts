@@ -17,6 +17,7 @@ export async function getSettings(): Promise<Settings> {
     branch_address:           obj['branch_address'],
     google_maps_link:         obj['google_maps_link'],
     default_sort:             obj['default_sort'] as Settings['default_sort'],
+    default_sort_dir:         obj['default_sort_dir'] as Settings['default_sort_dir'],
     last_sync_at:             obj['last_sync_at'],
     last_sync_count_sheet1:   obj['last_sync_count_sheet1']
                                 ? Number(obj['last_sync_count_sheet1']) : undefined,

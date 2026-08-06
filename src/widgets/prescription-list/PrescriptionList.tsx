@@ -15,34 +15,19 @@ import { NeumorphicButton } from '@/shared/ui/NeumorphicButton';
 import { StatusBadge } from '@/shared/ui/StatusBadge';
 import { VipBadge } from '@/shared/ui/VipBadge';
 import { FilterBar } from './FilterBar';
-import { whatsappLink, callLink, localFormat, phoneMatchesQuery, buildWhatsAppMessage } from '@/shared/lib/phone';
+import { whatsappLink, callLink, localFormat, buildWhatsAppMessage } from '@/shared/lib/phone';
 import { BarcodeVisual } from '@/shared/lib/barcode/BarcodeVisual';
-import { STATUS_URGENCY } from '@/entities/prescription/lib/status';
+import { matchesQuery, applySort } from '@/entities/prescription/lib/view';
 import type { PrescriptionStatus } from '@/entities/prescription/model/types';
 import { todayISO, tomorrowISO } from '@/shared/lib/excel-date';
 import { updatePrescription } from '@/entities/prescription/model/store';
+import { saveSettings } from '@/entities/settings/model/store';
 import { useQueryClient } from '@tanstack/react-query';
 import { nowISO } from '@/shared/lib/excel-date';
 import { BEAM } from '@/shared/config/beam';
 import { invalidateAfterMutation } from '@/shared/api/mutations';
+import { queryKeys } from '@/shared/api/queryKeys';
 import type { Prescription, FilterKey, SortKey, Settings } from '@/entities/prescription/model/types';
-
-// ── Search ───────────────────────────────────────────────────────────────────
-
-function matchesQuery(rx: Prescription, q: string): boolean {
-  if (!q.trim()) return true;
-  const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const haystack = [
-    rx.loyalty_name,
-    rx.patient_national_id,
-    rx.reference_number,
-    rx.drug_name_sheet1,
-    rx.drug_name_sheet2,
-    rx.notes,
-  ].filter(Boolean).join(' ').toLowerCase();
-  return tokens.every(t => haystack.includes(t))
-    || phoneMatchesQuery(rx.loyalty_phone, q);
-}
 
 // ── Filter ───────────────────────────────────────────────────────────────────
 
@@ -56,32 +41,6 @@ function applyFilter(rxs: Prescription[], filter: FilterKey): Prescription[] {
     case 'dispensed': return rxs.filter(rx => rx.status === 'dispensed');
     default:          return rxs;
   }
-}
-
-// ── Sort ────────────────────────────────────────────────────────────────────
-
-function applySort(rxs: Prescription[], sort: SortKey, sortDir: 'asc' | 'desc'): Prescription[] {
-  const m = sortDir === 'asc' ? 1 : -1;
-  return [...rxs].sort((a, b) => {
-    switch (sort) {
-      case 'scheduled_date':
-        return m * (a.scheduled_date ?? '').localeCompare(b.scheduled_date ?? '');
-      case 'loyalty_name':
-        return m * (a.loyalty_name ?? '').localeCompare(b.loyalty_name ?? '');
-      case 'gross_value':
-        return m * (a.gross_value - b.gross_value);
-      case 'notified': {
-        const aT = a.notified_at ?? '';
-        const bT = b.notified_at ?? '';
-        if (aT && !bT) return -m;
-        if (!aT && bT) return m;
-        return m * aT.localeCompare(bT);
-      }
-      case 'status_urgency':
-      default:
-        return m * (STATUS_URGENCY[a.status] - STATUS_URGENCY[b.status]);
-    }
-  });
 }
 
 // ── Filter counts ────────────────────────────────────────────────────────────
@@ -497,10 +456,32 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
   useEffect(() => {
     if (initialFilter) setFilter(initialFilter);
   }, [initialFilter]);
-  const [sort,      setSort]      = useState<SortKey>('scheduled_date');
-  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('asc');
+  const [sort,      setSort]      = useState<SortKey>(settings?.default_sort ?? 'scheduled_date');
+  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>(settings?.default_sort_dir ?? 'asc');
   const [page,      setPage]      = useState(1);
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  // Persisted sort: apply once settings arrive (async), then let user interactions own state.
+  const appliedDefaultSort = useRef(!!settings?.default_sort);
+  useEffect(() => {
+    if (appliedDefaultSort.current) return;
+    appliedDefaultSort.current = true;
+    if (settings?.default_sort) {
+      setSort(settings.default_sort);
+      setSortDir(settings.default_sort_dir ?? 'asc');
+      setPage(1);
+    }
+  }, [settings]);
+
+  // Persist the user's last sort choice across sessions.
+  const handleSort = (nextSort: SortKey, nextDir: 'asc' | 'desc') => {
+    setSort(nextSort);
+    setSortDir(nextDir);
+    setPage(1);
+    void saveSettings({ default_sort: nextSort, default_sort_dir: nextDir })
+      .then(() => qc.invalidateQueries({ queryKey: queryKeys.settings.all() }));
+  };
 
   const searched = useMemo(() => {
     return prescriptions.filter(rx => matchesQuery(rx, query));
@@ -551,7 +532,14 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
       <div className="flex items-center justify-between">
         {filter !== 'all' && filter !== 'dispensed' && visible.length > 0 && (
           <button
-            onClick={() => navigate(`/scan?filter=${filter}`)}
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set('filter', filter);
+              params.set('sort', sort);
+              params.set('dir', sortDir);
+              if (query.trim()) params.set('q', query.trim());
+              navigate(`/scan?${params.toString()}`);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-[11px] font-bold border-[3px] border-primary shadow-neu-sm cursor-pointer transition-all duration-150"
           >
             <ScanLine size={13} />
@@ -567,11 +555,9 @@ export function PrescriptionList({ prescriptions, settings, initialFilter, onNot
                 key={o.key}
                 onClick={() => {
                   if (isActive) {
-                    setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                    handleSort(sort, sortDir === 'asc' ? 'desc' : 'asc');
                   } else {
-                    setSort(o.key);
-                    setSortDir('desc');
-                    setPage(1);
+                    handleSort(o.key, 'desc');
                   }
                 }}
                 className={[

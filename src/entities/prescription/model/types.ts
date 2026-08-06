@@ -31,7 +31,7 @@ export interface Prescription {
   notes: string | null;
   // Action timestamps
   dispensed_at: string | null;
-  actioned_at: string | null; // set ONCE — never overwritten (ADR-0002/0008)
+  actioned_at: string | null; // when last actioned — stamped on markDueToday so the urgent deck excludes it (ADR-0002/0008)
   // Notification tracking
   notified_via: 'whatsapp' | 'call' | null;
   notified_at: string | null;
@@ -49,6 +49,7 @@ export interface Settings {
   branch_address?: string;
   google_maps_link?: string;
   default_sort?: SortKey;
+  default_sort_dir?: 'asc' | 'desc';
   last_sync_at?: string;
   last_sync_count_sheet1?: number;
   last_sync_count_sheet2?: number;

@@ -25,7 +25,7 @@ export async function invalidateAfterMutation(
     case 'scanAction':
       await Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
-        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scanAll() }),
         qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
       ]);
       break;
@@ -44,7 +44,7 @@ export async function invalidateAfterMutation(
     case 'sync':
       await Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
-        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scanAll() }),
         qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
         qc.invalidateQueries({ queryKey: queryKeys.settings.all() }),
       ]);
@@ -55,7 +55,7 @@ export async function invalidateAfterMutation(
         qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
         qc.invalidateQueries({ queryKey: queryKeys.settings.all() }),
         qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
-        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scanAll() }),
       ]);
       break;
 
@@ -63,7 +63,7 @@ export async function invalidateAfterMutation(
       await Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.prescriptions.all() }),
         qc.invalidateQueries({ queryKey: queryKeys.queue.countAll() }),
-        qc.invalidateQueries({ queryKey: queryKeys.queue.scan(null, null) }),
+        qc.invalidateQueries({ queryKey: queryKeys.queue.scanAll() }),
       ]);
       break;
   }

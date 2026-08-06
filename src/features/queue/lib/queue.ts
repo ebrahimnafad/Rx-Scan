@@ -8,30 +8,29 @@ import {
   countByStatus as dbCountByStatus,
 } from '@/entities/prescription/model/store';
 import { todayISO } from '@/shared/lib/excel-date';
-import type { Prescription, PrescriptionStatus } from '@/entities/prescription/model/types';
+import { applySort, matchesQuery } from '@/entities/prescription/lib/view';
+import type { Prescription, PrescriptionStatus, SortKey } from '@/entities/prescription/model/types';
 
-export type QueueFilter =
-  | { type: 'default' }
-  | { type: 'urgent' }
-  | { type: 'pending' }
-  | { type: 'skipped' }
-  | { type: 'vip' }
-  | { type: 'scheduled' }
-  | { type: 'dispensed' }
-  | { type: 'byId'; id: number };
+export interface QueueFilter {
+  type: 'default' | 'urgent' | 'pending' | 'skipped' | 'vip' | 'scheduled' | 'dispensed' | 'byId';
+  id?: number;
+  sort?: SortKey;
+  sortDir?: 'asc' | 'desc';
+  search?: string;
+}
 
 function urgentSortKey(rx: Prescription): string {
   return rx.scheduled_date ?? rx.created_at ?? '';
 }
 
-export async function getTopInQueue(filter: QueueFilter, limit: number): Promise<Prescription[]> {
+/**
+ * Load the full (unlimited) deck set for a filter — DB rows + search + sort.
+ * Search/sort mirror the prescriptions list (shared applySort/matchesQuery) so
+ * the deck always presents exactly what the list showed.
+ */
+async function loadRows(filter: QueueFilter): Promise<Prescription[]> {
   const db = await getDb();
   let rows: Prescription[] = [];
-
-  if (filter.type === 'byId') {
-    const rx = await getPrescriptionById(filter.id);
-    return rx ? [rx] : [];
-  }
 
   if (filter.type === 'default') {
     const pending = (await db.getAllFromIndex('prescriptions', 'by_status', 'pending'))
@@ -64,11 +63,14 @@ export async function getTopInQueue(filter: QueueFilter, limit: number): Promise
     rows = await db.getAllFromIndex('prescriptions', 'by_status', 'dispensed');
   }
 
-  // Common sort: ascending by queue_position
-  rows.sort((a: Prescription, b: Prescription) => (a.queue_position ?? 0) - (b.queue_position ?? 0));
+  // Search filter (mirrors the list's search box)
+  const search = filter.search?.trim() ?? '';
+  if (search) rows = rows.filter(r => matchesQuery(r, search));
 
-  // Override sorts for special filters
-  if (filter.type === 'vip') {
+  // Explicit sort from the list wins; otherwise keep the per-filter default order.
+  if (filter.sort) {
+    rows = applySort(rows, filter.sort, filter.sortDir ?? 'asc');
+  } else if (filter.type === 'vip') {
     rows.sort((a: Prescription, b: Prescription) => {
       const aUrgent = a.status === 'due_today' || a.status === 'overdue';
       const bUrgent = b.status === 'due_today' || b.status === 'overdue';
@@ -82,8 +84,22 @@ export async function getTopInQueue(filter: QueueFilter, limit: number): Promise
     rows.sort((a: Prescription, b: Prescription) => (a.scheduled_date ?? '').localeCompare(b.scheduled_date ?? ''));
   } else if (filter.type === 'dispensed') {
     rows.sort((a: Prescription, b: Prescription) => (b.dispensed_at ?? '').localeCompare(a.dispensed_at ?? ''));
+  } else {
+    // default / pending / skipped: ascending queue_position
+    rows.sort((a: Prescription, b: Prescription) => (a.queue_position ?? 0) - (b.queue_position ?? 0));
   }
 
+  return rows;
+}
+
+export async function getTopInQueue(filter: QueueFilter, limit: number): Promise<Prescription[]> {
+  if (filter.type === 'byId') {
+    if (filter.id == null) return [];
+    const rx = await getPrescriptionById(filter.id);
+    return rx ? [rx] : [];
+  }
+
+  const rows = await loadRows(filter);
   return rows.slice(0, limit);
 }
 
@@ -92,38 +108,6 @@ export async function countByStatus(status: PrescriptionStatus): Promise<number>
 }
 
 export async function countForFilter(filter: QueueFilter): Promise<number> {
-  const db = await getDb();
-
-  switch (filter.type) {
-    case 'default': {
-      const pending = await dbCountByStatus('pending');
-      const skipped = await dbCountByStatus('skipped');
-      return pending + skipped;
-    }
-    case 'urgent': {
-      const today = todayISO();
-      const rows1 = await db.getAllFromIndex('prescriptions', 'by_status', 'due_today');
-      const rows2 = await db.getAllFromIndex('prescriptions', 'by_status', 'overdue');
-      return [...rows1, ...rows2].filter((r: Prescription) => !r.actioned_at || !r.actioned_at.startsWith(today)).length;
-    }
-    case 'pending':
-      return dbCountByStatus('pending');
-    case 'skipped':
-      return dbCountByStatus('skipped');
-    case 'vip': {
-      const statuses: PrescriptionStatus[] = ['pending', 'skipped', 'due_today', 'overdue'];
-      let count = 0;
-      for (const s of statuses) {
-        const rows = await db.getAllFromIndex('prescriptions', 'by_status', s);
-        count += rows.filter((r: Prescription) => r.is_vip).length;
-      }
-      return count;
-    }
-    case 'scheduled':
-      return dbCountByStatus('scheduled');
-    case 'dispensed':
-      return dbCountByStatus('dispensed');
-    case 'byId':
-      return 1;
-  }
+  if (filter.type === 'byId') return 1;
+  return (await loadRows(filter)).length;
 }

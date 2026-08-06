@@ -260,15 +260,13 @@ export function ScanDeck({ settings }: ScanDeckProps) {
               key={currentKey}
               initial={false}
               animate={
-                exitDirRef.current && swipingKeyRef.current === currentKey
-                  ? (exitVariant as any)
-                  : refuseDir
-                    ? {
-                        x: refuseDir === 'left' ? -28 : refuseDir === 'right' ? 28 : dragDelta.x,
-                        y: refuseDir === 'up' ? -28 : refuseDir === 'down' ? 28 : dragDelta.y,
-                        rotate: refuseDir === 'left' ? -3 : refuseDir === 'right' ? 3 : 0,
-                      }
-                    : { opacity: 1, scale: 1, x: dragDelta.x, y: dragDelta.y }
+                refuseDir
+                  ? {
+                      x: refuseDir === 'left' ? -28 : refuseDir === 'right' ? 28 : dragDelta.x,
+                      y: refuseDir === 'up' ? -28 : refuseDir === 'down' ? 28 : dragDelta.y,
+                      rotate: refuseDir === 'left' ? -3 : refuseDir === 'right' ? 3 : 0,
+                    }
+                  : { opacity: 1, scale: 1, x: dragDelta.x, y: dragDelta.y }
               }
               exit={exitVariant as any}
               transition={
